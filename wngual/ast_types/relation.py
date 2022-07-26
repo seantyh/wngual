@@ -1,11 +1,11 @@
 from typing import List
 
-class RelationSpec:
-    def __init__(self, relation: str, params: List[str]):
+class wngRelationSpec:
+    def __init__(self, relation: str, params: List[str] = []):
         self.relation = relation
         self.params = params
 
-class RelationOp:
+class wngRelationOp:
     def __init__(self, equality=False, negation=False):
         self.equality = equality
         self.negation = negation
@@ -16,7 +16,7 @@ class ArrowType(Enum):
     backward = 2
     bidirectional = 3
 
-class ArrowSpec:
+class wngArrowSpec:
     def __init__(self, 
             backward=ArrowType.forward, 
             one_src=False, one_tgt=False):

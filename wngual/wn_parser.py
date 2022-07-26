@@ -1,5 +1,7 @@
 from .wn_lexer import lexer, tokens
 from .ply import yacc as yacc
+from .wn_errors import WngSyntaxError
+from .ast_types import *
 
 start = 'statement'
 
@@ -9,26 +11,30 @@ def p_statement(p):
         | mutation
         | assignment
     """
-    p[0] = [*p[1:]]
+    p[0] = p[1]
 
 def p_mutation(p):
     """
     mutation : action complex_expr
     """
-    p[0] = (p[1], p[2])
+    p[0] = wngMutation(p[1], p[2])
 
 def p_action(p):
     """
     action : CREATE
         | DELETE
     """
-    p[0] = p[1]   
+    try:
+        p[0] = ActionType[p[1].value]
+    except IndexError:
+        raise WngSyntaxError("Unknown action: "+ 
+            p[1], p.lineno(1), p.lexpos(1))    
 
 def p_assignment(p):
     """      
     assignment : TEXT '=' complex_expr
     """
-    p[0] = []
+    p[0] = wngAssignment(p[1], p[3])
 
 def p_comlex_expr(p):
     """
@@ -41,16 +47,16 @@ def p_comlex_expr(p):
     if len(p)==4 and p[1] == '(':
         p[0] = p[2]
     elif len(p) == 4:
-        p[0] = [p[1], p[3]]
+        p[0] = wngComplexExpr(p[1], p[3], p[2])
     else:
-        p[0] = p[0]    
+        p[0] = p[1]   
 
 def p_expr(p):
     """
     expr : sense_expr
         | relation_expr    
     """
-    p[0] = []
+    p[0] = p[1]
 
 def p_sense_expr(p):
     """
@@ -59,21 +65,36 @@ def p_sense_expr(p):
         | '@' sense_constraints
         | TEXT '@' sense_constraints        
     """
-    p[0] = ["sense_expr", *p[1:]]
+    if len(p) == 2:
+        p[0] = wngSenseExpr(p[0])
+    elif len(p) == 3 and p[1] == "#":
+        p[0] = wngSenseExpr(f"#{p[1]}")
+    elif len(p) == 3 and p[1] == "@":
+        p[0] = wngSenseExpr("", p[2])
+    else:
+        p[0] = wngSenseExpr(p[1], p[2])
 
 def p_sense_constraints(p):
     """
     sense_constraints : sense_constraint
         | sense_constraints ',' sense_constraint
     """
-    p[0] = []
+    if len(p) > 2:
+        clauses = p[1][::1]
+        clauses.append(p[3])
+        p[0] = clauses
+    else:
+        p[0] = [p[1]]
 
 def p_sense_constraint(p):
     """
     sense_constraint : TEXT
         | relation_spec rel_op sense_expr
     """
-    p[0] = []
+    if len(p) > 2:
+        p[0] = wngSenseRelClause(p[1], p[2], p[3])
+    else:
+        p[0] = wngSenseClause(p[1])
 
 def p_relation_spec(p):
     """
@@ -81,16 +102,20 @@ def p_relation_spec(p):
         | TEXT '<' rel_param '>'
     """
     if len(p) == 3:
-        p[0] = (p[2], p[1])
+        p[0] = wngRelationSpec(p[1], p[3])
     else:
-        p[0] = (p[1], '')
+        p[0] = wngRelationSpec(p[1])        
 
 def p_rel_param(p):
     """
     rel_param : TEXT
         | rel_param ',' TEXT
     """
-    p[0] = []
+    if len(p) > 2:
+        p[1].append(p[3])
+        p[0] = p[1]
+    else:
+        p[0] = [p[1]]
 
 def p_rel_op(p):
     """
@@ -99,15 +124,22 @@ def p_rel_op(p):
         | IS NOT
         | IS NOT IN
     """
-    p[0] = []
-    
+    if len(p) == 2:
+        p[0] = wngRelationOp(equality=True, negation=False)
+    elif len(p) == 3 and p[2].type=="IN":
+        p[0] = wngRelationOp(equality=False, negation=False)
+    elif len(p) == 3 and p[2].type=="NOT":
+        p[0] = wngRelationOp(equality=True, negation=True)
+    else:
+        p[0] = wngRelationOp(equality=False, negation=True)    
 
 def p_relation_expr(p):
     """
     relation_expr : sense_expr arrow_spec sense_expr    
         | sense_expr arrow_spec sense_expr ':' relation_spec
     """
-    p[0] = []
+    if len(p) <= 4:
+        p[0] = wngRelationExpr(p[1], p[2], p[3])
 
 def p_arrow_spec(p):
     """
@@ -115,8 +147,20 @@ def p_arrow_spec(p):
         | RELMOD arrow
         | arrow RELMOD
         | RELMOD arrow RELMOD    
-    """
-    p[0] = []
+    """    
+    if len(p) == 2:
+        p[0] = wngArrowSpec(p[1])
+    elif len(p) == 3 and p[1] in ".*":
+        one_src = p[1] == "."
+        p[0] = wngArrowSpec(p[1], one_src=one_src)
+    elif len(p) == 3 and p[2] in ".*":
+        one_tgt = p[2] == "."
+        p[0] = wngArrowSpec(p[1], one_tgt=one_tgt)
+    else:
+        one_src = p[1] == "."
+        one_tgt = p[3] == "."
+        p[0] = wngArrowSpec(p[1], one_src=one_src, one_tgt=one_tgt)
+        
 
 def p_arrow(p):
     """
@@ -124,8 +168,15 @@ def p_arrow(p):
         | RARROW
         | BIARROW
     """
-    p[0] = '->'
-
+    p[0] = {
+        "->": ArrowType.forward,
+        "<-": ArrowType.backward,
+        "<->": ArrowType.bidirectional
+    }.get(p[1], None)            
+    if not p[0]:
+        raise WngSyntaxError(
+            "Unknown arrow type: "+p[1], 
+            p.lineno(1), p.lexpos(1))
 
 def p_error(p):
     if p:
