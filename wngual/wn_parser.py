@@ -17,6 +17,13 @@ def p_mutation(p):
     """
     p[0] = (p[1], p[2])
 
+def p_action(p):
+    """
+    action : CREATE
+        | DELETE
+    """
+    p[0] = p[1]   
+
 def p_assignment(p):
     """      
     assignment : TEXT '=' complex_expr
@@ -64,26 +71,26 @@ def p_sense_constraints(p):
 def p_sense_constraint(p):
     """
     sense_constraint : TEXT
-        | rel_type rel_op sense_expr
+        | relation_spec rel_op sense_expr
     """
     p[0] = []
 
-def p_rel_type(p):
+def p_relation_spec(p):
     """
-    rel_type : rel_id
-        | RECURSIVE rel_id
+    relation_spec : TEXT
+        | TEXT '<' rel_param '>'
     """
-    if len(p) == 4:
-        p[0] = (p[3], 'rec')
+    if len(p) == 3:
+        p[0] = (p[2], p[1])
     else:
-        p[0] = (p[1], 'direct')
+        p[0] = (p[1], '')
 
-def p_rel_id(p):
+def p_rel_param(p):
     """
-    rel_id : HYPER
-        | HYPO
+    rel_param : TEXT
+        | rel_param ',' TEXT
     """
-    p[0] = p[1]
+    p[0] = []
 
 def p_rel_op(p):
     """
@@ -93,18 +100,12 @@ def p_rel_op(p):
         | IS NOT IN
     """
     p[0] = []
-
-def p_action(p):
-    """
-    action : CREATE
-        | DELETE
-    """
-    p[0] = p[1]        
+    
 
 def p_relation_expr(p):
     """
     relation_expr : sense_expr arrow_spec sense_expr    
-        | sense_expr arrow_spec sense_expr ':' relation_modifier
+        | sense_expr arrow_spec sense_expr ':' relation_spec
     """
     p[0] = []
 
@@ -125,19 +126,6 @@ def p_arrow(p):
     """
     p[0] = '->'
 
-def p_relation_modifier(p):
-    """
-    relation_modifier : TEXT
-        | TEXT '<' rel_param '>'
-    """
-    p[0] = []
-
-def p_rel_param(p):
-    """
-    rel_param : TEXT
-        | rel_param ',' TEXT
-    """
-    p[0] = []
 
 def p_error(p):
     if p:

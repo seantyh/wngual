@@ -2,7 +2,7 @@ from .ply import lex as lex
 
 reserved = (
     'CREATE', 'DELETE', 
-    'hyper', 'hypo', 'is', 'not', 'in', "recursive"
+    'is', 'not', 'in', 
 )
 
 tokens = [       
@@ -11,7 +11,7 @@ tokens = [
     'TEXT'
     ] + [x.upper() for x in reserved]
 
-literals = list("!@#$%^&()=~:;/,")
+literals = list("!@#$%^&()<>=~:;/,")
 t_RARROW = r"->"
 t_LARROW = r"<-"
 t_BIARROW = r"<->"
