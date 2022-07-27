@@ -13,9 +13,22 @@ class wngMutation:
         self.action = action
         self.expr = expr
 
+    def __repr__(self):
+        return ("<wngMutation[{}]: \n" 
+            + "  {}>").format(
+                self.action, self.expr
+            )
+
 class wngAssignment:
     def __init__(self,
             identifier: str,
             expr: wngComplexExpr):
         self.identifier = identifier
         self.expr = expr
+
+    
+    def __repr__(self):
+        return ("<wngAssignment: {} = \n" 
+            + "  {}>").format(
+                self.identifier, self.expr
+            )

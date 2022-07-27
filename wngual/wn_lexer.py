@@ -6,16 +6,15 @@ reserved = (
 )
 
 tokens = [       
-    'RARROW', 'LARROW', 'BIARROW',
-    'RELMOD',
+    'RARROW', 'RPARROW', 'LARROW', 'BIARROW',    
     'TEXT'
     ] + [x.upper() for x in reserved]
 
-literals = list("!@#$%^&()<>=~:;/,")
+literals = list("!@#$%^&()<>=~:;/.,")
 t_RARROW = r"->"
+t_RPARROW = r"~>"
 t_LARROW = r"<-"
 t_BIARROW = r"<->"
-t_RELMOD = r'[\.\*]'
 t_ignore = ' \t\r\n'
 
 def t_TEXT(t):

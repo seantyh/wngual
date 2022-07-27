@@ -25,7 +25,7 @@ def p_action(p):
         | DELETE
     """
     try:
-        p[0] = ActionType[p[1].value]
+        p[0] = ActionType[p[1]]
     except IndexError:
         raise WngSyntaxError("Unknown action: "+ 
             p[1], p.lineno(1), p.lexpos(1))    
@@ -42,10 +42,13 @@ def p_comlex_expr(p):
         | expr '+' expr
         | expr '-' expr
         | '(' complex_expr ')'       
+        | complex_expr '.' relation_spec
     """
 
     if len(p)==4 and p[1] == '(':
         p[0] = p[2]
+    elif len(p) == 4 and p[2] == '.':
+        p[0] = wngGenitiveExpr(p[1], p[3])
     elif len(p) == 4:
         p[0] = wngComplexExpr(p[1], p[3], p[2])
     else:
@@ -60,19 +63,26 @@ def p_expr(p):
 
 def p_sense_expr(p):
     """
-    sense_expr : TEXT
+    sense_expr : '@'
+        | TEXT '@'
+        | '$' TEXT
         | '#' TEXT
         | '@' sense_constraints
         | TEXT '@' sense_constraints        
     """
-    if len(p) == 2:
-        p[0] = wngSenseExpr(p[0])
+    if len(p) == 2 and p[1] == '@':
+        # wildcard sense expr
+        p[0] = wngSenseExpr("")    
+    elif len(p) == 3 and p[2] == '@':
+        p[0] = wngSenseExpr(p[1])
+    elif len(p) == 3 and p[1] == '$':        
+        p[0] = wngSenseVariable(p[2])
     elif len(p) == 3 and p[1] == "#":
-        p[0] = wngSenseExpr(f"#{p[1]}")
+        p[0] = wngSenseExpr(senseid=p[2])
     elif len(p) == 3 and p[1] == "@":
-        p[0] = wngSenseExpr("", p[2])
+        p[0] = wngSenseExpr("", clauses=p[2])
     else:
-        p[0] = wngSenseExpr(p[1], p[2])
+        p[0] = wngSenseExpr(p[1], clauses=p[3])
 
 def p_sense_constraints(p):
     """
@@ -90,6 +100,7 @@ def p_sense_constraint(p):
     """
     sense_constraint : TEXT
         | relation_spec rel_op sense_expr
+        | relation_spec rel_op TEXT
     """
     if len(p) > 2:
         p[0] = wngSenseRelClause(p[1], p[2], p[3])
@@ -101,10 +112,10 @@ def p_relation_spec(p):
     relation_spec : TEXT
         | TEXT '<' rel_param '>'
     """
-    if len(p) == 3:
+    if len(p) == 5:
         p[0] = wngRelationSpec(p[1], p[3])
     else:
-        p[0] = wngRelationSpec(p[1])        
+        p[0] = wngRelationSpec(p[1])
 
 def p_rel_param(p):
     """
@@ -126,53 +137,36 @@ def p_rel_op(p):
     """
     if len(p) == 2:
         p[0] = wngRelationOp(equality=True, negation=False)
-    elif len(p) == 3 and p[2].type=="IN":
+    elif len(p) == 3 and p[2]=="in":
         p[0] = wngRelationOp(equality=False, negation=False)
-    elif len(p) == 3 and p[2].type=="NOT":
+    elif len(p) == 3 and p[2]=="not":
         p[0] = wngRelationOp(equality=True, negation=True)
     else:
         p[0] = wngRelationOp(equality=False, negation=True)    
 
 def p_relation_expr(p):
     """
-    relation_expr : sense_expr arrow_spec sense_expr    
-        | sense_expr arrow_spec sense_expr ':' relation_spec
+    relation_expr : sense_expr arrow sense_expr    
+        | sense_expr arrow sense_expr ':' relation_spec
     """
     if len(p) <= 4:
         p[0] = wngRelationExpr(p[1], p[2], p[3])
-
-def p_arrow_spec(p):
-    """
-    arrow_spec : arrow
-        | RELMOD arrow
-        | arrow RELMOD
-        | RELMOD arrow RELMOD    
-    """    
-    if len(p) == 2:
-        p[0] = wngArrowSpec(p[1])
-    elif len(p) == 3 and p[1] in ".*":
-        one_src = p[1] == "."
-        p[0] = wngArrowSpec(p[1], one_src=one_src)
-    elif len(p) == 3 and p[2] in ".*":
-        one_tgt = p[2] == "."
-        p[0] = wngArrowSpec(p[1], one_tgt=one_tgt)
     else:
-        one_src = p[1] == "."
-        one_tgt = p[3] == "."
-        p[0] = wngArrowSpec(p[1], one_src=one_src, one_tgt=one_tgt)
-        
+        p[0] = wngRelationExpr(p[1], p[2], p[3], p[5])
 
 def p_arrow(p):
     """
     arrow : LARROW
         | RARROW
-        | BIARROW
+        | RPARROW
+        | BIARROW        
     """
     p[0] = {
         "->": ArrowType.forward,
         "<-": ArrowType.backward,
-        "<->": ArrowType.bidirectional
-    }.get(p[1], None)            
+        "<->": ArrowType.bidirectional,
+        "~>": ArrowType.para_forward
+    }.get(p[1], None)           
     if not p[0]:
         raise WngSyntaxError(
             "Unknown arrow type: "+p[1], 
