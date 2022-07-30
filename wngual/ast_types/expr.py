@@ -1,14 +1,16 @@
 from typing import Union, Optional
 from .relation import *
+from .base import wngBase
 
-class wngSenseClause:
-    def __init__(self, text_constraint: str):
+class wngSenseClause(wngBase):
+    def __init__(self, text_constraint: str):        
         self.constraint = text_constraint
+        self.fields = ["constraint"]
 
     def __repr__(self):
         return f"<wngSenseClause: {self.constraint}>"
 
-class wngSenseRelClause:
+class wngSenseRelClause(wngBase):
     def __init__(self, 
             rel_spec: wngRelationSpec,
             rel_op: wngRelationOp, 
@@ -16,21 +18,23 @@ class wngSenseRelClause:
         self.rel_spec = rel_spec
         self.rel_op = rel_op
         self.tgt_values = tgt_values
+        self.fields = ["rel_spec", "rel_op", "tgt_values"]
     
     def __repr__(self):
         return "<wngSenseRelClause: {} {} {}>".format(
             self.rel_spec, self.rel_op, self.tgt_values
         )
-class wngSenseVariable:
+class wngSenseVariable(wngBase):
     def __init__(self, identifier):
         self.identifier = identifier
+        self.fields = ["identifier"]
     
     def __repr__(self):
         return f"<wngSenseVariable: {self.identifier}>"
 
 wngSenseClauseType = Union[wngSenseClause, wngSenseRelClause]
 
-class wngSenseExpr:
+class wngSenseExpr(wngBase):
     def __init__(self, 
             lemma: Optional[str]=None, 
             senseid: Optional[str]=None,
@@ -38,6 +42,7 @@ class wngSenseExpr:
         self.lemma = lemma
         self.senseid = senseid
         self.clauses = clauses
+        self.fields = ["lemma", "senseid", "clauses"]
     
     def __repr__(self):
         if not (self.lemma or self.senseid or self.clauses):
@@ -53,7 +58,7 @@ class wngSenseExpr:
             return f"<wngSenseExpr: {self.lemma}>"
 
 
-class wngRelationExpr:
+class wngRelationExpr(wngBase):
     def __init__(self, 
         src: wngSenseExpr,
         arrow: ArrowType,
@@ -63,6 +68,7 @@ class wngRelationExpr:
         self.arrow = arrow
         self.tgt = tgt        
         self.rel_spec = rel_spec
+        self.fields = ["src", "arrow", "tgt", "rel_spec"]
     
     def __repr__(self):
         if self.rel_spec:
@@ -83,7 +89,7 @@ class wngRelationExpr:
 
 wngExpr = Union[wngSenseExpr, wngRelationExpr]
 
-class wngComplexExpr:
+class wngComplexExpr(wngBase):
     def __init__(self, 
             expr1: wngExpr, 
             expr2: Optional[wngExpr]=None, 
@@ -91,6 +97,7 @@ class wngComplexExpr:
         self.expr1 = expr1
         self.expr2 = expr2
         self.op = op
+        self.fields = ["expr1", "expr2", "op"]
     
     def __repr__(self):
         return "<wngComplexExpr: {} {} {}>".format(
@@ -99,12 +106,13 @@ class wngComplexExpr:
             self.expr2
         )
     
-class wngGenitiveExpr:
+class wngGenitiveExpr(wngBase):
     def __init__(self, 
             expr: wngComplexExpr, 
             rel_spec: wngRelationSpec):
         self.expr = expr
         self.rel_spec = rel_spec
+        self.fields = ["expr", "rel_spec"]
 
     def __repr__(self):
         return f"<wngGenitiveExpr: {self.expr}.{self.rel_spec}>"
